@@ -20,6 +20,7 @@
     "client": "node build/client.js"
   },
   "dependencies": {
+    "@linear/sdk": "^33.0.0",
     "@modelcontextprotocol/sdk": "0.6.0",
     "axios": "^1.7.8",
     "dotenv": "^16.4.5"

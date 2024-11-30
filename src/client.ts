@@ -5,6 +5,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { spawn } from "child_process";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { config as dotenvConfig } from "dotenv";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,6 +16,13 @@ async function main() {
   let client;
 
   try {
+    // Load environment variables
+    dotenvConfig();
+    const linearApiKey = process.env.LINEAR_API_KEY;
+    if (!linearApiKey) {
+      throw new Error("LINEAR_API_KEY environment variable is not set");
+    }
+
     // Start the server process
     const serverPath = path.join(__dirname, "server.js");
     serverProcess = spawn("node", [serverPath]);
@@ -37,7 +45,7 @@ async function main() {
           sampling: {},
           roots: {},
         },
-      }
+      },
     );
     await client.connect(transport);
 
@@ -45,7 +53,6 @@ async function main() {
     console.log("\nListing all notes:");
     const resources = await client.listResources({ type: "note" });
     console.log(resources);
-
   } catch (error) {
     console.error("Error:", error);
   } finally {
@@ -65,8 +72,8 @@ async function main() {
 }
 
 // Add error handling for uncaught errors
-process.on('unhandledRejection', (error) => {
-  console.error('Unhandled promise rejection:', error);
+process.on("unhandledRejection", (error) => {
+  console.error("Unhandled promise rejection:", error);
   process.exit(1);
 });
 
