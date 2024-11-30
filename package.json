@@ -12,10 +12,12 @@
   ],
   "scripts": {
     "clean": "rm -rf build",
-    "build": "tsc && node -e \"require('fs').chmodSync('build/server.js', '755')\"",
+    "build": "tsc && node -e \"require('fs').chmodSync('build/server.js', '755'); require('fs').chmodSync('build/client.js', '755')\"",
     "prepare": "npm run build",
     "watch": "tsc --watch",
-    "inspector": "npx @modelcontextprotocol/inspector build/server.js"
+    "inspector": "npx @modelcontextprotocol/inspector build/server.js",
+    "server": "node build/server.js",
+    "client": "node build/client.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "0.6.0",
