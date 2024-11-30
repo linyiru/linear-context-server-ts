@@ -1,14 +1,5 @@
 #!/usr/bin/env node
 
-/**
- * This is a template MCP server that implements a simple notes system.
- * It demonstrates core MCP concepts like resources and tools by allowing:
- * - Listing notes as resources
- * - Reading individual notes
- * - Creating new notes via a tool
- * - Summarizing all notes via a prompt
- */
-
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -29,15 +20,15 @@ if (!linearApiKey) {
   throw new Error("LINEAR_API_KEY environment variable is not set");
 }
 
+// Initialize Linear client
+const linearClient = new LinearClient({
+  apiKey: linearApiKey,
+});
+
 async function getMyIssues(client: LinearClient) {
   const me = await client.viewer;
   const myIssues = await me.assignedIssues();
-
-  // if (myIssues.nodes.length) {
-  //   myIssues.nodes.map((issue: Issue) => console.error(`${me.displayName} has issue: ${issue.title}`));
-  // } else {
-  //   console.error(`${me.displayName} has no issues`);
-  // }
+  return myIssues.nodes;
 }
 
 const server = new Server(
@@ -51,49 +42,96 @@ const server = new Server(
       tools: {},
       prompts: {},
     },
-  },
+  }
 );
 
-server.setRequestHandler(ListResourcesRequestSchema, async () => {
+/**
+ * Handler for listing available resources.
+ * Lists Linear issues assigned to the current user.
+ */
+server.setRequestHandler(ListResourcesRequestSchema, async (request) => {
+  const resources = [];
+
+  // Add Linear issues if requested
+  if (!request.params?.type || request.params.type === "issue") {
+    const issues = await getMyIssues(linearClient);
+    const issueResources = issues.map(issue => ({
+      uri: `issue://${issue.id}`,
+      mimeType: "text/plain",
+      name: issue.title,
+      description: `Linear issue: ${issue.title} (${issue.identifier})`,
+    }));
+    resources.push(...issueResources);
+  }
+
   return {
-    resources: [],
+    resources,
   };
 });
 
+/**
+ * Handler for reading resources.
+ * Retrieves and formats Linear issue details.
+ */
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-  throw new Error("not implemented");
-});
+  if (!request.params?.uri) {
+    throw new Error("URI is required");
+  }
 
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [],
-  };
-});
+  const url = new URL(request.params.uri);
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  switch (request.params.name) {
-    case "create_note": {
-      return {
-        content: [],
-      };
+  // Handle Linear issues
+  if (url.protocol === "issue:") {
+    const issueId = url.hostname;
+    const issue = await linearClient.issue(issueId);
+
+    if (!issue) {
+      throw new Error(`Issue ${issueId} not found`);
     }
 
-    default:
-      throw new Error("Unknown tool");
+    const content = [
+      `Title: ${issue.title}`,
+      `ID: ${issue.identifier}`,
+      `State: ${(await issue.state)?.name || "Unknown"}`,
+      `Assignee: ${(await issue.assignee)?.name || "Unassigned"}`,
+      `Description:`,
+      issue.description || "No description",
+    ].join("\n");
+
+    return {
+      contents: [{
+        uri: request.params.uri,
+        mimeType: "text/plain",
+        text: content
+      }]
+    };
   }
+
+  throw new Error(`Unsupported resource type: ${url.protocol}`);
+});
+
+/**
+ * Handler that lists available tools.
+ */
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+  return {
+    tools: []
+  };
+});
+
+/**
+ * Handler that lists available prompts.
+ */
+server.setRequestHandler(ListPromptsRequestSchema, async () => {
+  return {
+    prompts: []
+  };
 });
 
 /**
  * Start the server using stdio transport.
- * This allows the server to communicate via standard input/output streams.
  */
 async function main() {
-  const client = new LinearClient({
-    apiKey: linearApiKey,
-  });
-
-  getMyIssues(client);
-
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

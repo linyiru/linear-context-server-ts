@@ -49,9 +49,9 @@ async function main() {
     );
     await client.connect(transport);
 
-    // List all notes
-    console.log("\nListing all notes:");
-    const resources = await client.listResources({ type: "note" });
+    // List all Linear issues
+    console.log("\nListing assigned Linear issues:");
+    const resources = await client.listResources({ type: "issue" });
     console.log(resources);
   } catch (error) {
     console.error("Error:", error);
