@@ -25,8 +25,8 @@ const linearClient = new LinearClient({
   apiKey: linearApiKey,
 });
 
-async function getMyIssues(client: LinearClient) {
-  const me = await client.viewer;
+async function getMyIssues() {
+  const me = await linearClient.viewer;
   const myIssues = await me.assignedIssues();
   return myIssues.nodes;
 }
@@ -54,7 +54,7 @@ server.setRequestHandler(ListResourcesRequestSchema, async (request) => {
 
   // Add Linear issues if requested
   if (!request.params?.type || request.params.type === "issue") {
-    const issues = await getMyIssues(linearClient);
+    const issues = await getMyIssues();
     const issueResources = issues.map(issue => ({
       uri: `issue://${issue.id}`,
       mimeType: "application/json",
