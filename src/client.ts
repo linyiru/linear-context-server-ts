@@ -11,13 +11,41 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const words = {
-  adjectives: ["Innovative", "Dynamic", "Strategic", "Seamless", "Robust", "Intuitive", "Scalable", "Efficient"],
-  verbs: ["Implement", "Optimize", "Enhance", "Develop", "Refactor", "Design", "Integrate", "Deploy"],
-  nouns: ["Architecture", "Framework", "Solution", "Platform", "System", "Interface", "Component", "Pipeline"]
+  adjectives: [
+    "Innovative",
+    "Dynamic",
+    "Strategic",
+    "Seamless",
+    "Robust",
+    "Intuitive",
+    "Scalable",
+    "Efficient",
+  ],
+  verbs: [
+    "Implement",
+    "Optimize",
+    "Enhance",
+    "Develop",
+    "Refactor",
+    "Design",
+    "Integrate",
+    "Deploy",
+  ],
+  nouns: [
+    "Architecture",
+    "Framework",
+    "Solution",
+    "Platform",
+    "System",
+    "Interface",
+    "Component",
+    "Pipeline",
+  ],
 };
 
 function generateRandomTitle() {
-  const adj = words.adjectives[Math.floor(Math.random() * words.adjectives.length)];
+  const adj =
+    words.adjectives[Math.floor(Math.random() * words.adjectives.length)];
   const verb = words.verbs[Math.floor(Math.random() * words.verbs.length)];
   const noun = words.nouns[Math.floor(Math.random() * words.nouns.length)];
   return `${verb} ${adj} ${noun}`;
@@ -29,13 +57,6 @@ async function main() {
   let client;
 
   try {
-    // Load environment variables
-    dotenvConfig();
-    const linearApiKey = process.env.LINEAR_API_KEY;
-    if (!linearApiKey) {
-      throw new Error("LINEAR_API_KEY environment variable is not set");
-    }
-
     // Start the server process
     const serverPath = path.join(__dirname, "server.js");
     serverProcess = spawn("node", [serverPath]);
@@ -49,7 +70,7 @@ async function main() {
     // Create the client and connect
     client = new Client(
       {
-        name: "linear-context-client",
+        name: "linear-context-server-ts",
         version: "0.1.0",
       },
       {
@@ -73,7 +94,7 @@ async function main() {
     console.log(resources);
 
     // Create a test issue
-    const create_issue = false
+    const create_issue = false;
     if (create_issue) {
       console.log("\nCreating a test issue:");
       const createResult = await client.callTool({
