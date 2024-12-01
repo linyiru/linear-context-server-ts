@@ -4,14 +4,15 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
-  GetPromptRequestSchema,
-  ListPromptsRequestSchema,
+  CallToolResult,
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
+  TextContent,
+  Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { config as dotenvConfig } from "dotenv";
-import { LinearClient, Issue } from "@linear/sdk";
+import { Issue, LinearClient } from "@linear/sdk";
 
 // Load environment variables
 dotenvConfig();
@@ -22,6 +23,20 @@ if (!linearApiKey) {
 
 // Tools
 const CREATE_ISSUE = "create_issue";
+const TOOLS: Tool[] = [
+  {
+    name: CREATE_ISSUE,
+    description: "Create a new Linear issue",
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        description: { type: "string" },
+      },
+      required: ["title"],
+    },
+  },
+];
 
 // Initialize Linear client
 const linearClient = new LinearClient({
@@ -41,17 +56,10 @@ const server = new Server(
   },
   {
     capabilities: {
-      resources: {
-        types: [{
-          name: "issue",
-          description: "Linear issue",
-          uriScheme: "issue"
-        }]
-      },
+      resources: {},
       tools: {},
-      prompts: {},
     },
-  }
+  },
 );
 
 /**
@@ -64,7 +72,7 @@ server.setRequestHandler(ListResourcesRequestSchema, async (request) => {
   // Add Linear issues if requested
   if (!request.params?.type || request.params.type === "issue") {
     const issues = await getMyIssues();
-    const issueResources = issues.map(issue => ({
+    const issueResources = issues.map((issue) => ({
       uri: `issue://${issue.id}`,
       mimeType: "application/json",
       name: issue.title,
@@ -103,15 +111,15 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       id: issue.identifier,
       state: (await issue.state)?.name || "Unknown",
       assignee: (await issue.assignee)?.name || "Unassigned",
-      description: issue.description || "No description"
+      description: issue.description || "No description",
     };
 
     return {
       contents: [{
         uri: request.params.uri,
         mimeType: "application/json",
-        text: JSON.stringify(issueData, null, 2)
-      }]
+        text: JSON.stringify(issueData, null, 2),
+      }],
     };
   }
 
@@ -122,38 +130,21 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
  * Handler that lists available tools.
  */
 server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [{
-      name: CREATE_ISSUE,
-      description: "Create a new Linear issue",
-      inputSchema: {
-        type: "object",
-        properties: {
-          title: { type: "string" },
-          description: { type: "string" }
-        },
-        required: ["title"]
-      }
-    }]
-  };
-});
-
-/**
- * Handler that lists available prompts.
- */
-server.setRequestHandler(ListPromptsRequestSchema, async () => {
-  return {
-    prompts: []
-  };
+  return { tools: TOOLS };
 });
 
 /**
  * Handler for calling tools.
  */
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  switch (request.params.name) {
+  const name = request.params.name;
+
+  switch (name) {
     case CREATE_ISSUE: {
-      const args = request.params.arguments as { title: string; description?: string };
+      const args = request.params.arguments as {
+        title: string;
+        description?: string;
+      };
       const { title, description } = args;
 
       // Get the default team to create the issue in
@@ -168,20 +159,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const response = await linearClient.createIssue({
         title,
         description,
-        teamId: team.id
+        teamId: team.id,
       });
 
       // Return the created issue data
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify(response, null, 2)
-        }]
-      };
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(response, null, 2),
+          } as TextContent,
+        ],
+        isError: false,
+      } as CallToolResult;
     }
 
     default:
-      throw new Error("Unknown tool");
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error: Unknown tool: ${name}`,
+          },
+        ],
+        isError: true,
+      };
   }
 });
 

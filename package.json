@@ -5,14 +5,14 @@
   "private": true,
   "type": "module",
   "bin": {
-    "linear-context-server-ts": "./build/server.js"
+    "linear-context-server-ts": "build/server.js"
   },
   "files": [
     "build"
   ],
   "scripts": {
     "clean": "rm -rf build",
-    "build": "tsc && node -e \"require('fs').chmodSync('build/server.js', '755'); require('fs').chmodSync('build/client.js', '755')\"",
+    "build": "tsc && shx chmod +x build/*.js",
     "prepare": "npm run build",
     "watch": "tsc --watch",
     "inspector": "npx @modelcontextprotocol/inspector build/server.js",
@@ -27,6 +27,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
+    "shx": "^0.3.4",
     "typescript": "^5.3.3"
   }
 }
