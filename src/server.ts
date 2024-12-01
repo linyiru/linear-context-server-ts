@@ -20,6 +20,9 @@ if (!linearApiKey) {
   throw new Error("LINEAR_API_KEY environment variable is not set");
 }
 
+// Tools
+const CREATE_ISSUE = "create_issue";
+
 // Initialize Linear client
 const linearClient = new LinearClient({
   apiKey: linearApiKey,
@@ -38,7 +41,13 @@ const server = new Server(
   },
   {
     capabilities: {
-      resources: {},
+      resources: {
+        types: [{
+          name: "issue",
+          description: "Linear issue",
+          uriScheme: "issue"
+        }]
+      },
       tools: {},
       prompts: {},
     },
@@ -114,7 +123,18 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
  */
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
-    tools: []
+    tools: [{
+      name: CREATE_ISSUE,
+      description: "Create a new Linear issue",
+      inputSchema: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          description: { type: "string" }
+        },
+        required: ["title"]
+      }
+    }]
   };
 });
 
@@ -125,6 +145,44 @@ server.setRequestHandler(ListPromptsRequestSchema, async () => {
   return {
     prompts: []
   };
+});
+
+/**
+ * Handler for calling tools.
+ */
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  switch (request.params.name) {
+    case CREATE_ISSUE: {
+      const args = request.params.arguments as { title: string; description?: string };
+      const { title, description } = args;
+
+      // Get the default team to create the issue in
+      const teams = await linearClient.teams();
+      const team = teams.nodes[0]; // Use first team
+
+      if (!team) {
+        throw new Error("No team found to create issue in");
+      }
+
+      // Create the issue
+      const response = await linearClient.createIssue({
+        title,
+        description,
+        teamId: team.id
+      });
+
+      // Return the created issue data
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(response, null, 2)
+        }]
+      };
+    }
+
+    default:
+      throw new Error("Unknown tool");
+  }
 });
 
 /**

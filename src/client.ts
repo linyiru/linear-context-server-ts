@@ -10,6 +10,19 @@ import { config as dotenvConfig } from "dotenv";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const words = {
+  adjectives: ["Innovative", "Dynamic", "Strategic", "Seamless", "Robust", "Intuitive", "Scalable", "Efficient"],
+  verbs: ["Implement", "Optimize", "Enhance", "Develop", "Refactor", "Design", "Integrate", "Deploy"],
+  nouns: ["Architecture", "Framework", "Solution", "Platform", "System", "Interface", "Component", "Pipeline"]
+};
+
+function generateRandomTitle() {
+  const adj = words.adjectives[Math.floor(Math.random() * words.adjectives.length)];
+  const verb = words.verbs[Math.floor(Math.random() * words.verbs.length)];
+  const noun = words.nouns[Math.floor(Math.random() * words.nouns.length)];
+  return `${verb} ${adj} ${noun}`;
+}
+
 async function main() {
   let serverProcess;
   let transport;
@@ -49,23 +62,30 @@ async function main() {
     );
     await client.connect(transport);
 
+    // List available tools
+    console.log("\nListing available tools:");
+    const tools = await client.listTools();
+    console.log(tools);
+
     // List all Linear issues
     console.log("\nListing assigned Linear issues:");
     const resources = await client.listResources({ type: "issue" });
     console.log(resources);
 
-    // If we have any issues, read the first one
-    if (resources.resources.length > 0) {
-      console.log("\nFetching details for first issue:");
-      const firstIssue = resources.resources[0];
-      const issueDetails = await client.readResource({ uri: firstIssue.uri });
-      
-      // Parse the JSON from the text field
-      const content = issueDetails.contents[0];
-      if (content && typeof content.text === 'string') {
-        const issueData = JSON.parse(content.text);
-        console.log("Parsed issue data:", issueData);
-      }
+    // Create a test issue
+    const create_issue = false
+    if (create_issue) {
+      console.log("\nCreating a test issue:");
+      const createResult = await client.callTool({
+        name: "create_issue",
+        arguments: {
+          title: generateRandomTitle(),
+          description:
+            "This is a test issue created via the Model Context Protocol",
+        },
+      });
+      console.log("\nCreated a test issue:");
+      console.log(createResult);
     }
   } catch (error) {
     console.error("Error:", error);
