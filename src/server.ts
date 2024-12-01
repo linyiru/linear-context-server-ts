@@ -57,7 +57,7 @@ server.setRequestHandler(ListResourcesRequestSchema, async (request) => {
     const issues = await getMyIssues(linearClient);
     const issueResources = issues.map(issue => ({
       uri: `issue://${issue.id}`,
-      mimeType: "text/plain",
+      mimeType: "application/json",
       name: issue.title,
       description: `Linear issue: ${issue.title} (${issue.identifier})`,
     }));
@@ -89,20 +89,19 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       throw new Error(`Issue ${issueId} not found`);
     }
 
-    const content = [
-      `Title: ${issue.title}`,
-      `ID: ${issue.identifier}`,
-      `State: ${(await issue.state)?.name || "Unknown"}`,
-      `Assignee: ${(await issue.assignee)?.name || "Unassigned"}`,
-      `Description:`,
-      issue.description || "No description",
-    ].join("\n");
+    const issueData = {
+      title: issue.title,
+      id: issue.identifier,
+      state: (await issue.state)?.name || "Unknown",
+      assignee: (await issue.assignee)?.name || "Unassigned",
+      description: issue.description || "No description"
+    };
 
     return {
       contents: [{
         uri: request.params.uri,
-        mimeType: "text/plain",
-        text: content
+        mimeType: "application/json",
+        text: JSON.stringify(issueData, null, 2)
       }]
     };
   }

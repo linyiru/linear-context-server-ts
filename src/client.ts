@@ -53,6 +53,20 @@ async function main() {
     console.log("\nListing assigned Linear issues:");
     const resources = await client.listResources({ type: "issue" });
     console.log(resources);
+
+    // If we have any issues, read the first one
+    if (resources.resources.length > 0) {
+      console.log("\nFetching details for first issue:");
+      const firstIssue = resources.resources[0];
+      const issueDetails = await client.readResource({ uri: firstIssue.uri });
+      
+      // Parse the JSON from the text field
+      const content = issueDetails.contents[0];
+      if (content && typeof content.text === 'string') {
+        const issueData = JSON.parse(content.text);
+        console.log("Parsed issue data:", issueData);
+      }
+    }
   } catch (error) {
     console.error("Error:", error);
   } finally {
