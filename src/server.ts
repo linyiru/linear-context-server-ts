@@ -33,6 +33,11 @@ const TOOLS: Tool[] = [
       properties: {
         title: { type: "string" },
         description: { type: "string" },
+        assignee: {
+          type: "string",
+          description:
+            "Set to 'me' to assign to self, otherwise pass a user's ID",
+        },
       },
       required: ["title"],
     },
@@ -157,7 +162,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           title: issue.title,
           state: (await issue.state)?.name || "Unknown",
           url: issue.url,
-        }))
+        })),
       );
 
       return {
@@ -175,8 +180,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const args = request.params.arguments as {
         title: string;
         description?: string;
+        assignee?: string;
       };
-      const { title, description } = args;
+      const { title, description, assignee } = args;
+
+      let assigneeId: string | undefined;
+      if (assignee === "me") {
+        const me = await linearClient.viewer;
+        assigneeId = me.id;
+      }
 
       // Get the default team to create the issue in
       const teams = await linearClient.teams();
@@ -188,8 +200,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       // Create the issue
       const response = await linearClient.createIssue({
-        title,
-        description,
+        title: title,
+        description: description,
+        assigneeId: assigneeId,
         teamId: team.id,
       });
 
