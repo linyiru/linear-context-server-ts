@@ -191,7 +191,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       // Get the default team to create the issue in
-      const teams = await linearClient.teams();
+      const me = await linearClient.viewer;
+      const teams = await me.teams();
       const team = teams.nodes[0]; // Use first team
 
       if (!team) {
