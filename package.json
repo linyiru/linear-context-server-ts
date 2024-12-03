@@ -17,7 +17,8 @@
     "watch": "tsc --watch",
     "inspector": "npx @modelcontextprotocol/inspector build/server.js",
     "server": "node build/server.js",
-    "client": "node build/client.js"
+    "client": "node build/client.js",
+    "configure": "tsx scripts/configure.ts"
   },
   "dependencies": {
     "@linear/sdk": "^33.0.0",
@@ -28,6 +29,7 @@
   "devDependencies": {
     "@types/node": "^20.11.24",
     "shx": "^0.3.4",
+    "tsx": "^4.19.2",
     "typescript": "^5.3.3"
   }
 }

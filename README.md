@@ -30,7 +30,15 @@ npm run watch
 
 ## Installation
 
-To use with Claude Desktop, add the server config:
+To use with Claude Desktop, add the server config.
+
+### Automatic
+
+```shell
+npm run configure [--force] [--name=<server-name>]
+```
+
+### Manual
 
 On MacOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
