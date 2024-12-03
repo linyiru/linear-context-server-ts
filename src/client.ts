@@ -101,6 +101,14 @@ async function main() {
     });
     console.log(listResult);
 
+    // Test list_teams tool
+    console.log("\nTesting list_teams tool:");
+    const teamsResult = await client.callTool({
+      name: "list_teams",
+      arguments: {},
+    });
+    console.log(teamsResult);
+
     // Create a test issue
     const create_issue = false;
     if (create_issue) {

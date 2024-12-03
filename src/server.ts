@@ -24,6 +24,7 @@ if (!linearApiKey) {
 // Tools
 const CREATE_ISSUE = "create_issue";
 const LIST_ISSUES = "list_issues";
+const LIST_TEAMS = "list_teams";
 const TOOLS: Tool[] = [
   {
     name: CREATE_ISSUE,
@@ -45,6 +46,14 @@ const TOOLS: Tool[] = [
   {
     name: LIST_ISSUES,
     description: "List all Linear issues assigned to me",
+    inputSchema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: LIST_TEAMS,
+    description: "List all Linear teams I have access to",
     inputSchema: {
       type: "object",
       properties: {},
@@ -170,6 +179,29 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           {
             type: "text",
             text: JSON.stringify(issuesData, null, 2),
+          } as TextContent,
+        ],
+        isError: false,
+      } as CallToolResult;
+    }
+
+    case LIST_TEAMS: {
+      const me = await linearClient.viewer;
+      const teams = await me.teams();
+
+      const teamsData = await Promise.all(
+        teams.nodes.map(async (team) => ({
+          id: team.id,
+          name: team.name,
+          key: team.key,
+        })),
+      );
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(teamsData, null, 2),
           } as TextContent,
         ],
         isError: false,
