@@ -3,16 +3,10 @@
 A Model Context Protocol server for Linear.
 
 ## Tools
-
-### `create_issue`
-Create a new Linear issue.
-
-### `list_issues`
-List all Linear issues assigned to me.
-
-### `list_teams`
-List all Linear teams I have access to.
-
+{% for tool in tools %}
+### `{{ tool.name }}`
+{{ tool.description }}
+{% endfor %}
 
 ## Examples
 

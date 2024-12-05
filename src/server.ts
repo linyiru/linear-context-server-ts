@@ -13,6 +13,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { config as dotenvConfig } from "dotenv";
 import { Issue, LinearClient } from "@linear/sdk";
+import { TOOLS, CREATE_ISSUE, LIST_ISSUES, LIST_TEAMS } from './tools.js';
 
 // Load environment variables
 dotenvConfig();
@@ -20,46 +21,6 @@ const linearApiKey = process.env.LINEAR_API_KEY;
 if (!linearApiKey) {
   throw new Error("LINEAR_API_KEY environment variable is not set");
 }
-
-// Tools
-const CREATE_ISSUE = "create_issue";
-const LIST_ISSUES = "list_issues";
-const LIST_TEAMS = "list_teams";
-const TOOLS: Tool[] = [
-  {
-    name: CREATE_ISSUE,
-    description: "Create a new Linear issue",
-    inputSchema: {
-      type: "object",
-      properties: {
-        title: { type: "string" },
-        description: { type: "string" },
-        assignee: {
-          type: "string",
-          description:
-            "Set to 'me' to assign to self, otherwise pass a user's ID",
-        },
-      },
-      required: ["title"],
-    },
-  },
-  {
-    name: LIST_ISSUES,
-    description: "List all Linear issues assigned to me",
-    inputSchema: {
-      type: "object",
-      properties: {},
-    },
-  },
-  {
-    name: LIST_TEAMS,
-    description: "List all Linear teams I have access to",
-    inputSchema: {
-      type: "object",
-      properties: {},
-    },
-  },
-];
 
 // Initialize Linear client
 const linearClient = new LinearClient({
