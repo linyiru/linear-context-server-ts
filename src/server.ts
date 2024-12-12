@@ -10,10 +10,11 @@ import {
   ReadResourceRequestSchema,
   TextContent,
   Tool,
-} from "@modelcontextprotocol/sdk/types.js";
+  Prompt,
+} from '@modelcontextprotocol/sdk/types.js';
 import { config as dotenvConfig } from "dotenv";
-import { Issue, LinearClient } from "@linear/sdk";
-import { TOOLS, CREATE_ISSUE, LIST_ISSUES, LIST_TEAMS } from './tools.js';
+import { Issue, LinearClient, LinearDocument } from "@linear/sdk";
+import { TOOLS, CREATE_ISSUE, LIST_ISSUES, LIST_TEAMS, UPDATE_ISSUE, ADD_COMMENT, SEARCH_ISSUES } from './tools.js';
 
 // Load environment variables
 dotenvConfig();
@@ -33,17 +34,91 @@ async function getMyIssues() {
   return myIssues.nodes;
 }
 
+
+const serverPrompt: Prompt = {
+  name: 'linear-server-prompt',
+  description: 'Instructions for using the Linear MCP server effectively',
+  instructions: `This server provides access to Linear, a project management tool. Use it to manage issues, track work, and coordinate with teams.
+
+Key capabilities:
+- Create and update issues: Create new tickets or modify existing ones with titles, descriptions, priorities, and team assignments.
+- Search functionality: Find issues across the organization using flexible search queries with team and user filters.
+- Team coordination: Access team-specific issues and manage work distribution within teams.
+- Issue tracking: Add comments and track progress through status updates and assignments.
+- Organization overview: View team structures and user assignments across the organization.
+
+Tool Usage:
+- linear_create_issue:
+  - use teamId from linear-organization: resource
+  - priority levels: 1=urgent, 2=high, 3=normal, 4=low
+  - status must match exact Linear workflow state names (e.g., "In Progress", "Done")
+
+- linear_update_issue:
+  - get issue IDs from search_issues or linear-issue:/// resources
+  - only include fields you want to change
+  - status changes must use valid state IDs from the team's workflow
+
+- linear_search_issues:
+  - combine multiple filters for precise results
+  - use labels array for multiple tag filtering
+  - query searches both title and description
+  - returns max 10 results by default
+
+- linear_get_user_issues:
+  - omit userId to get authenticated user's issues
+  - useful for workload analysis and sprint planning
+  - returns most recently updated issues first
+
+- linear_add_comment:
+  - supports full markdown formatting
+  - use displayIconUrl for bot/integration avatars
+  - createAsUser for custom comment attribution
+
+Best practices:
+- When creating issues:
+  - Write clear, actionable titles that describe the task well (e.g., "Implement user authentication for mobile app")
+  - Include concise but appropriately detailed descriptions in markdown format with context and acceptance criteria
+  - Set appropriate priority based on the context (1=critical to 4=nice-to-have)
+  - Always specify the correct team ID (default to the user's team if possible)
+
+- When searching:
+  - Use specific, targeted queries for better results (e.g., "auth mobile app" rather than just "auth")
+  - Apply relevant filters when asked or when you can infer the appropriate filters to narrow results
+
+- When adding comments:
+  - Use markdown formatting to improve readability and structure
+  - Keep content focused on the specific issue and relevant updates
+  - Include action items or next steps when appropriate
+
+- General best practices:
+  - Fetch organization data first to get valid team IDs
+  - Use search_issues to find issues for bulk operations
+  - Include markdown formatting in descriptions and comments
+
+Resource patterns:
+- linear-issue:///{issueId} - Single issue details (e.g., linear-issue:///c2b318fb-95d2-4a81-9539-f3268f34af87)
+- linear-team:///{teamId}/issues - Team's issue list (e.g., linear-team:///OPS/issues)
+- linear-user:///{userId}/assigned - User assignments (e.g., linear-user:///USER-123/assigned)
+- linear-organization: - Organization for the current user
+- linear-viewer: - Current user context
+
+The server uses the authenticated user's permissions for all operations.`,
+};
+
 const server = new Server(
   {
-    name: "linear-context-server-ts",
-    version: "0.1.0",
+    name: 'linear-context-server-ts',
+    version: '0.1.0',
   },
   {
     capabilities: {
+      prompts: {
+        default: serverPrompt,
+      },
       resources: {},
       tools: {},
     },
-  },
+  }
 );
 
 /**
@@ -206,6 +281,157 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           {
             type: "text",
             text: JSON.stringify(response, null, 2),
+          } as TextContent,
+        ],
+        isError: false,
+      } as CallToolResult;
+    }
+
+    case UPDATE_ISSUE: {
+      const args = request.params.arguments as {
+        issueId: string;
+        title?: string;
+        description?: string;
+        assignee?: string;
+        status?: string;
+      };
+      const { issueId, title, description, assignee, status } = args;
+
+      // Get the issue
+      const issue = await linearClient.issue(issueId);
+      if (!issue) {
+        throw new Error(`Issue ${issueId} not found`);
+      }
+
+      let assigneeId: string | undefined;
+      if (assignee === "me") {
+        const me = await linearClient.viewer;
+        assigneeId = me.id;
+      }
+
+      // Update the issue
+      const response = await issue.update({
+        title,
+        description,
+        assigneeId,
+        stateId: status,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(response, null, 2),
+          } as TextContent,
+        ],
+        isError: false,
+      } as CallToolResult;
+    }
+
+    case ADD_COMMENT: {
+      const args = request.params.arguments as {
+        issueId: string;
+        body: string;
+      };
+      const { issueId, body } = args;
+
+      // Get the issue
+      const issue = await linearClient.issue(issueId);
+      if (!issue) {
+        throw new Error(`Issue ${issueId} not found`);
+      }
+
+      // Create the comment
+      const response = await linearClient.createComment({
+        issueId: issue.id,
+        body: body,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(response, null, 2),
+          } as TextContent,
+        ],
+        isError: false,
+      } as CallToolResult;
+    }
+
+    case SEARCH_ISSUES: {
+      const args = request.params.arguments as {
+        query?: string;
+        teamId?: string;
+        status?: string;
+        assignee?: string;
+        priority?: number;
+        includeArchived?: boolean;
+        limit?: number;
+      };
+
+      // Build the filter object
+      const filter: any = {};
+      
+      if (args.query) {
+        filter.or = [
+          { title: { contains: args.query } },
+          { description: { contains: args.query } }
+        ];
+      }
+
+      if (args.teamId) {
+        filter.team = { id: { eq: args.teamId } };
+      }
+
+      if (args.status) {
+        filter.state = { name: { eq: args.status } };
+      }
+
+      // Handle assignee filter
+      if (args.assignee) {
+        if (args.assignee === 'me') {
+          const me = await linearClient.viewer;
+          filter.assignee = { id: { eq: me.id } };
+        } else {
+          filter.assignee = { id: { eq: args.assignee } };
+        }
+      }
+
+      if (args.priority) {
+        filter.priority = { eq: args.priority };
+      }
+
+      // Perform the search
+      const result = await linearClient.issues({
+        filter,
+        first: args.limit || 10,
+        includeArchived: args.includeArchived || false,
+        orderBy: LinearDocument.PaginationOrderBy.UpdatedAt,
+      });
+
+      // Format the results
+      const issuesData = await Promise.all(
+        result.nodes.map(async (issue) => ({
+          id: issue.identifier,
+          title: issue.title,
+          description: issue.description,
+          priority: issue.priority,
+          state: (await issue.state)?.name || "Unknown",
+          assignee: (await issue.assignee)?.name || "Unassigned",
+          url: issue.url,
+          createdAt: issue.createdAt,
+          updatedAt: issue.updatedAt,
+        }))
+      );
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              total: result.nodes.length,
+              issues: issuesData
+            }, null, 2),
           } as TextContent,
         ],
         isError: false,

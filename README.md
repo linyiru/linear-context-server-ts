@@ -13,6 +13,33 @@ List all Linear issues assigned to me.
 ### `list_teams`
 List all Linear teams I have access to.
 
+### `update_issue`
+Update an existing Linear issue's properties (title, description, assignee, status).
+
+### `add_comment`
+Add a comment to an existing Linear issue.
+
+### `search_issues`
+Search Linear issues with flexible criteria. Supports filtering by:
+- Text in title or description
+- Team
+- Status
+- Assignee
+- Priority
+- Include/exclude archived issues
+- Custom result limit
+
+Example usage:
+```json
+{
+  "query": "bug login",
+  "status": "In Progress",
+  "assignee": "me",
+  "priority": 1,
+  "limit": 5
+}
+```
+
 
 ## Examples
 
